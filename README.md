@@ -11,7 +11,7 @@ The RadioFX plugin isn't tied to any game and thereby fills this gap as a generi
 ## Installation
 
 It is recommended to install the plugin directly from within the client, so that it gets automatically updated.
-In you TeamSpeak client, go to Tools->Options->Addons->Browse, search for the "Ducker" plugin and install.
+In you TeamSpeak client, go to Tools->Options->Addons->Browse, search for the "RadioFX" plugin and install.
 
 ## Compiling yourself
 After cloning, you'll have to manually initialize the submodules:
