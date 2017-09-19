@@ -98,7 +98,7 @@ int ts3plugin_offersConfigure() { return plugin->kPluginOffersConfigure; }
  * can be omitted.
  * Note the passed pluginID parameter is no longer valid after calling this function, so you must copy it and store it in the plugin.
  */
-void ts3plugin_registerPluginID(const char* id) { plugin.swap(std::make_unique<Plugin>(id)); }
+void ts3plugin_registerPluginID(const char* id) { plugin = std::make_unique<Plugin>(id); }
 
 /* Plugin command keyword. Return NULL or "" if not used. */
 const char* ts3plugin_commandKeyword() {
