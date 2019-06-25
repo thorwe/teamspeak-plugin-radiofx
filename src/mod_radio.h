@@ -9,89 +9,63 @@
 #include "core/ts_serversinfo.h"
 #include "core/talkers.h"
 
-struct RadioFX_Settings
-{
-    QString name = "";
-    bool enabled = false;
-    double freq_low = 0.0;
-    double freq_hi = 0.0;
-    double fudge = 0.0;
-    double rm_mod_freq = 0.0;
-    double rm_mix = 0.0;
-    double o_freq_lo = 0.0;
-    double o_freq_hi = 0.0;
-};
+#include <unordered_map>
+#include <atomic>
+
+namespace thorwe {
+namespace ts {
+    using connection_id_t = std::uint64_t;
+    using channel_id_id = std::uint64_t;
+    using client_id_t = std::uint16_t;
+}
+}
+using namespace thorwe;
 
 class Radio : public Module, public TalkInterface
 {
     Q_OBJECT
     Q_INTERFACES(TalkInterface)
-    Q_PROPERTY(uint64 homeId READ homeId WRITE setHomeId)
+    Q_PROPERTY(ts::connection_id_t homeId READ homeId WRITE setHomeId)
 
 public:
     explicit Radio(TSServersInfo& servers_info, Talkers& talkers, QObject* parent = nullptr);
     
-    bool onTalkStatusChanged(uint64 serverConnectionHandlerID, int status, bool isReceivedWhisper, anyID clientID, bool isMe);
+    bool onTalkStatusChanged(ts::connection_id_t sch_id, int status, bool is_received_whisper, ts::client_id_t client_id, bool is_me) override;
 
-    void setHomeId(uint64 serverConnectionHandlerID);
-    uint64 homeId() {return m_homeId;}
+    void setHomeId(ts::connection_id_t sch_id);
+    ts::connection_id_t homeId() {return m_home_id.load();}
 
-    bool isClientBlacklisted(uint64 serverConnectionHandlerID, anyID clientID);
+    bool isClientBlacklisted(ts::connection_id_t sch_id, ts::client_id_t client_id);
 
     // events forwarded from plugin.cpp
-    void onEditPlaybackVoiceDataEvent(uint64 serverConnectionHandlerID, anyID clientID, short* samples, int sampleCount, int channels);
+    void onEditPlaybackVoiceDataEvent(ts::connection_id_t sch_id, ts::client_id_t client_id, short* samples, int frame_count, int channels);
 
-    QHash<QString, RadioFX_Settings> GetSettingsMap() const;
-    QHash<QString, RadioFX_Settings>& GetSettingsMapRef();
+    std::unordered_map<std::string, RadioFX_Settings>& settings_map_ref();
 
-signals:
-    void ChannelStripEnabledSet(QString, bool);
-    void FudgeChanged(QString, double);
-    void InLoFreqSet(QString, double);
-    void InHiFreqSet(QString, double);
-    void RingModFrequencyChanged(QString, double);
-    void RingModMixChanged(QString,double);
-    void OutLoFreqSet(QString, double);
-    void OutHiFreqSet(QString, double);
-    // connected to dsp_radio
-    void InBpCenterFreqSet(QString, double);
-    void InBpBandwidthSet(QString,double);
-    void OutBpCenterFreqSet(QString, double);
-    void OutBpBandwidthSet(QString, double);
+	void setChannelStripEnabled(QString name, bool val);
+	void setFudge(QString name, double val);
+	void setInLoFreq(QString name, double val);
+	void setInHiFreq(QString name, double val);
+	void setRingModFrequency(QString name, double val);
+	void setRingModMix(QString name, double val);
+	void setOutLoFreq(QString name, double val);
+	void setOutHiFreq(QString name, double val);
 
-public slots:
-    void setChannelStripEnabled(QString name, bool val);
-    void setFudge(QString name, double val);
-    void setInLoFreq(QString name, double val);
-    void setInHiFreq(QString name, double val);
-    void setRingModFrequency(QString name, double val);
-    void setRingModMix(QString name, double val);
-    void setOutLoFreq(QString name, double val);
-    void setOutHiFreq(QString name, double val);
-
-    void ToggleClientBlacklisted(uint64 serverConnectionHandlerID, anyID clientID);
-
-    //void saveSettings(int r);
+	void ToggleClientBlacklisted(ts::connection_id_t sch_id, ts::client_id_t client_id);
 
 private:
-    uint64 m_homeId = 0;
+    std::atomic<ts::connection_id_t> m_home_id = 0;
     
 	TSServersInfo& m_servers_info;
 	Talkers& m_talkers;
 	
-    QHash<uint64, QHash<anyID,DspRadio*>* > m_talkers_dspradios;
+	std::unordered_multimap<ts::connection_id_t, std::pair<ts::client_id_t, std::unique_ptr<DspRadio>>> m_talkers_dspradios;
+	DspRadio* findRadio(ts::connection_id_t sc_handler_id, ts::client_id_t client_id);
 
-    QHash<QString, RadioFX_Settings> m_SettingsMap;
+    std::unordered_map<std::string, RadioFX_Settings> m_settings_map;
 
-    // QMultiMap is reported to be faster than QMultiHash until up to 10 entries in 4.x, oh I dunno
-    QMultiMap<uint64,uint64> m_ClientBlacklist;
-
-    //we have low, hi freq as input, convert them here
-    static double getCenterFrequencyIn(RadioFX_Settings setting) {return setting.freq_low + (getBandWidthIn(setting) / 2.0);}
-    static double getBandWidthIn(RadioFX_Settings setting) {return setting.freq_hi - setting.freq_low;}
-    static double getCenterFrequencyOut(RadioFX_Settings setting) {return setting.o_freq_lo + (getBandWidthOut(setting) / 2.0);}
-    static double getBandWidthOut(RadioFX_Settings setting) {return setting.o_freq_hi - setting.o_freq_lo;}
+    std::unordered_multimap<ts::connection_id_t, ts::client_id_t> m_client_blacklist;
 
 protected:
-    void onRunningStateChanged(bool value);
+    void onRunningStateChanged(bool value) override;
 };

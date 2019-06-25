@@ -90,7 +90,7 @@ void SettingsRadio::shutdown()
         m_config->done(QDialog::Rejected);  // will save anyways
         delete m_config;
     }
-    for (auto config : m_channel_configs)
+    for (const auto& config : m_channel_configs)
     {
         config->done(QDialog::Rejected);
         delete config;
@@ -184,7 +184,7 @@ void SettingsRadio::onContextMenuEvent(uint64 serverConnectionHandlerID, PluginM
             if (!mP_radio)
                 return;
 
-            unsigned int error;
+            uint32_t error;
 
             char* channel_name_c;
             if ((error = ts3Functions.getChannelVariableAsString(serverConnectionHandlerID, selectedItemID, CHANNEL_NAME, &channel_name_c)) != ERROR_ok)
@@ -254,24 +254,24 @@ void SettingsRadio::saveSettings(int r)
         QSettings cfg(TSHelpers::GetFullConfigPath(), QSettings::IniFormat);
         cfg.beginGroup(mP_radio->objectName());
         {
-            auto settings_map = mP_radio->GetSettingsMap();
-            for (auto i = settings_map.constBegin(); i != settings_map.constEnd(); ++i)
+            auto&& settings_map = mP_radio->settings_map_ref();
+            for (const auto& setting : settings_map)
             {
-                QString name = i.key();
+                auto name = setting.first;
                 if (name == "Home")
                     name = "HomeTab";
 
-                cfg.beginGroup(name);
-                auto settings = i.value();
-                cfg.setValue("enabled",settings.enabled);
-                cfg.setValue("low_freq",settings.freq_low);
-                cfg.setValue("high_freq",settings.freq_hi);
-                cfg.setValue("o_freq_lo",settings.o_freq_lo);
-                cfg.setValue("o_freq_hi",settings.o_freq_hi);
-                cfg.setValue("fudge",settings.fudge);
+                cfg.beginGroup(QString::fromStdString(name));
+                const auto& settings = setting.second;
+                cfg.setValue("enabled", settings.enabled.load());
+                cfg.setValue("low_freq", settings.freq_low.load());
+                cfg.setValue("high_freq", settings.freq_hi.load());
+                cfg.setValue("o_freq_lo", settings.o_freq_lo.load());
+                cfg.setValue("o_freq_hi", settings.o_freq_hi.load());
+                cfg.setValue("fudge", settings.fudge.load());
                 cfg.beginGroup("RingMod");
-                cfg.setValue("rm_mod_freq",settings.rm_mod_freq);
-                cfg.setValue("rm_mix",settings.rm_mix);
+                cfg.setValue("rm_mod_freq", settings.rm_mod_freq.load());
+                cfg.setValue("rm_mix", settings.rm_mix.load());
                 cfg.endGroup();
                 cfg.endGroup();
             }
@@ -314,9 +314,9 @@ void SettingsRadio::on_channel_settings_finished(int r, QString setting_id)
         cfg.remove(setting_id);
 
         // This makes me wish for a redesign
-        auto& settings_map = mP_radio->GetSettingsMapRef();
-        if (settings_map.contains(setting_id))
-            settings_map.remove(setting_id);
+        auto& settings_map = mP_radio->settings_map_ref();
+        if (auto it = settings_map.find(setting_id.toStdString()); it != std::end(settings_map))
+            settings_map.erase(it);
 
         // TODO Update all current talkers
     }
@@ -327,11 +327,14 @@ void SettingsRadio::on_channel_settings_finished(int r, QString setting_id)
         if (!(cfg.childGroups().contains(setting_id)))
         {   // if not enabled remove setting (aka don't create setting) to not pollute for every dialog open
             // This makes me wish for a redesign
-            auto& settings_map = mP_radio->GetSettingsMapRef();
-            if ((settings_map.contains(setting_id)) && (!settings_map.value(setting_id).enabled))
+            auto& settings_map = mP_radio->settings_map_ref();
+            if (auto it = settings_map.find(setting_id.toStdString()); it != std::end(settings_map))
             {
-                settings_map.remove(setting_id);
-                do_save = false;
+                if (!it->second.enabled)
+                {
+                    settings_map.erase(it);
+                    do_save = false;
+                }
             }
         }
     }

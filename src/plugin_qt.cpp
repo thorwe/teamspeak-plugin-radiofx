@@ -49,13 +49,11 @@ void Plugin::on_connect_status_changed(uint64 sch_id, int new_status, unsigned i
 void Plugin::on_client_move(uint64 sch_id, anyID client_id, uint64 old_channel_id, uint64 new_channel_id, int visibility, anyID my_id, const char * move_message)
 {
 	Q_UNUSED(move_message);
-	// TODO
 }
 
 void Plugin::on_client_move_timeout(uint64 sch_id, anyID client_id, uint64 old_channel_id, anyID my_id, const char * timeout_message)
 {
 	Q_UNUSED(timeout_message);
-	// TODO
 }
 
 void Plugin::on_client_move_moved(uint64 sch_id, anyID client_id, uint64 old_channel_id, uint64 new_channel_id, int visibility, anyID my_id, anyID mover_id, const char * mover_name, const char * mover_unique_id, const char * move_message)
@@ -64,7 +62,6 @@ void Plugin::on_client_move_moved(uint64 sch_id, anyID client_id, uint64 old_cha
 	Q_UNUSED(mover_name);
 	Q_UNUSED(mover_unique_id);
 	Q_UNUSED(move_message);
-	// TODO
 }
 
 void Plugin::on_talk_status_changed(uint64 sch_id, int status, int is_received_whisper, anyID client_id, bool is_me)

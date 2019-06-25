@@ -83,3 +83,6 @@ include(deps/teamspeak-plugin-qt-common/CMakeLists.txt)
 
 add_library(RadioFx SHARED
     ${PLUGIN_SRC} ${TS_QT_CORE} ${TS_QT_VOLUME} ${DSP_FILTERS})
+    
+set_property(TARGET RadioFx PROPERTY CXX_STANDARD 17)
+set_property(TARGET RadioFx PROPERTY CXX_STANDARD_REQUIRED ON)

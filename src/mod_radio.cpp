@@ -6,6 +6,8 @@
 #include "plugin.h"
 #include "teamspeak/public_errors.h"
 
+#include <utility>
+
 Radio::Radio(TSServersInfo& servers_info, Talkers& talkers, QObject* parent)
 	: m_servers_info(servers_info)
 	, m_talkers(talkers)
@@ -15,196 +17,185 @@ Radio::Radio(TSServersInfo& servers_info, Talkers& talkers, QObject* parent)
     m_isPrintEnabled = false;
 }
 
-void Radio::setHomeId(uint64 serverConnectionHandlerID)
+void Radio::setHomeId(ts::connection_id_t sch_id)
 {
-    if (m_homeId == serverConnectionHandlerID)
-        return;
-
-    m_homeId = serverConnectionHandlerID;
+    m_home_id.store(sch_id);
     
-	if (m_homeId == 0)
-        return;
-
-    if (isRunning())
+    if (sch_id != 0 && isRunning())
         m_talkers.DumpTalkStatusChanges(this, true);
 }
 
-void Radio::setChannelStripEnabled(QString name, bool val)
+void Radio::setChannelStripEnabled(QString name_q, bool val)
 {
-    if (m_SettingsMap.contains(name))
+    const auto name = name_q.toStdString();
+    if (const auto it = m_settings_map.find(name); it != std::cend(m_settings_map))
     {
-        if (m_SettingsMap.value(name).enabled != val)
-            m_SettingsMap[name].enabled = val;
+        if (it->second.enabled.load() != val)
+            it->second.enabled.store(val);
     }
     else
     {
         auto setting = RadioFX_Settings();
-        setting.name = name;
-        setting.enabled = val;
-        m_SettingsMap.insert(name, setting);
+        setting.enabled.store(val);
+        m_settings_map.try_emplace(name, std::move(setting));
     }
-    //Log(QString("%1 enabled %2").arg(name).arg(val),LogLevel_DEBUG);
-    emit ChannelStripEnabledSet(name, val);
 }
 
-void Radio::setFudge(QString name, double val)
+void Radio::setFudge(QString name_q, double val)
 {
-    if (m_SettingsMap.contains(name))
+    const auto name = name_q.toStdString();
+    if (const auto it = m_settings_map.find(name); it != std::cend(m_settings_map))
     {
-        if (m_SettingsMap.value(name).fudge != val)
-            m_SettingsMap[name].fudge = val;
+        if (it->second.fudge != val)
+            it->second.fudge = val;
     }
     else
     {
         auto setting = RadioFX_Settings();
-        setting.name = name;
         setting.fudge = val;
-        m_SettingsMap.insert(name, setting);
+        m_settings_map.emplace(name, std::move(setting));
     }
-    //Log(QString("%1 fudge %2").arg(name).arg(val),LogLevel_DEBUG);
-    emit FudgeChanged(name, val);
 }
 
-void Radio::setInLoFreq(QString name, double val)
+void Radio::setInLoFreq(QString name_q, double val)
 {
-    if (m_SettingsMap.contains(name))
+    const auto name = name_q.toStdString();
+    if (const auto it = m_settings_map.find(name); it != std::cend(m_settings_map))
     {
-        if (m_SettingsMap.value(name).freq_low != val)
-            m_SettingsMap[name].freq_low = val;
+        if (it->second.freq_low != val)
+            it->second.freq_low = val;
     }
     else
     {
         auto setting = RadioFX_Settings();
-        setting.name = name;
         setting.freq_low = val;
-        m_SettingsMap.insert(name, setting);
+        m_settings_map.emplace(name, std::move(setting));
     }
-    emit InBpCenterFreqSet(name, getCenterFrequencyIn(m_SettingsMap.value(name)));
-    emit InBpBandwidthSet(name, getBandWidthIn(m_SettingsMap.value(name)));
-
-    //Log(QString("%1 low_freq %2").arg(name).arg(val),LogLevel_DEBUG);
-    emit InLoFreqSet(name,val);
 }
 
-void Radio::setInHiFreq(QString name, double val)
+void Radio::setInHiFreq(QString name_q, double val)
 {
-    if (m_SettingsMap.contains(name))
+    const auto name = name_q.toStdString();
+    if (const auto it = m_settings_map.find(name); it != std::cend(m_settings_map))
     {
-        if (m_SettingsMap.value(name).freq_hi != val)
-            m_SettingsMap[name].freq_hi = val;
+        if (it->second.freq_hi != val)
+            it->second.freq_hi = val;
     }
     else
     {
         auto setting = RadioFX_Settings();
-        setting.name = name;
         setting.freq_hi = val;
-        m_SettingsMap.insert(name, setting);
+        m_settings_map.emplace(name, std::move(setting));
     }
-    emit InBpCenterFreqSet(name, getCenterFrequencyIn(m_SettingsMap.value(name)));
-    emit InBpBandwidthSet(name, getBandWidthIn(m_SettingsMap.value(name)));
-
-    //Log(QString("%1 hi_freq %2").arg(name).arg(val),LogLevel_DEBUG);
-    emit InHiFreqSet(name,val);
 }
 
-void Radio::setRingModFrequency(QString name, double val)
+void Radio::setRingModFrequency(QString name_q, double val)
 {
-    if (m_SettingsMap.contains(name))
+    const auto name = name_q.toStdString();
+    if (const auto it = m_settings_map.find(name); it != std::cend(m_settings_map))
     {
-        if (m_SettingsMap.value(name).rm_mod_freq != val)
-            m_SettingsMap[name].rm_mod_freq = val;
+        if (it->second.rm_mod_freq != val)
+            it->second.rm_mod_freq = val;
     }
     else
     {
         auto setting = RadioFX_Settings();
-        setting.name = name;
         setting.rm_mod_freq = val;
-        m_SettingsMap.insert(name, setting);
+        m_settings_map.emplace(name, std::move(setting));
     }
-    //Log(QString("%1 rm_mod_freq %2").arg(name).arg(val),LogLevel_DEBUG);
-    emit RingModFrequencyChanged(name,val);
 }
 
-void Radio::setRingModMix(QString name, double val)
+void Radio::setRingModMix(QString name_q, double val)
 {
-    if (m_SettingsMap.contains(name))
+    const auto name = name_q.toStdString();
+    if (const auto it = m_settings_map.find(name); it != std::cend(m_settings_map))
     {
-        if (m_SettingsMap.value(name).rm_mix != val)
-            m_SettingsMap[name].rm_mix = val;
+        if (it->second.rm_mix != val)
+            it->second.rm_mix = val;
     }
     else
     {
         auto setting = RadioFX_Settings();
-        setting.name = name;
         setting.rm_mix = val;
-        m_SettingsMap.insert(name,setting);
+        m_settings_map.emplace(name, std::move(setting));
     }
-    //Log(QString("%1 rm_mix %2").arg(name).arg(val),LogLevel_DEBUG);
-    emit RingModMixChanged(name,val);
 }
 
-void Radio::setOutLoFreq(QString name, double val)
+void Radio::setOutLoFreq(QString name_q, double val)
 {
-    if (m_SettingsMap.contains(name))
+    const auto name = name_q.toStdString();
+    if (const auto it = m_settings_map.find(name); it != std::cend(m_settings_map))
     {
-        if (m_SettingsMap.value(name).o_freq_lo != val)
-            m_SettingsMap[name].o_freq_lo = val;
+        if (it->second.o_freq_lo != val)
+            it->second.o_freq_lo = val;
     }
     else
     {
         auto setting = RadioFX_Settings();
-        setting.name = name;
         setting.o_freq_lo = val;
-        m_SettingsMap.insert(name, setting);
+        m_settings_map.emplace(name, std::move(setting));
     }
-    emit OutBpCenterFreqSet(name, getCenterFrequencyOut(m_SettingsMap.value(name)));
-    emit OutBpBandwidthSet(name, getBandWidthOut(m_SettingsMap.value(name)));
-
-    emit OutLoFreqSet(name,val);
 }
 
-void Radio::setOutHiFreq(QString name, double val)
+void Radio::setOutHiFreq(QString name_q, double val)
 {
-    if (m_SettingsMap.contains(name))
+    const auto name = name_q.toStdString();
+    if (const auto it = m_settings_map.find(name); it != std::cend(m_settings_map))
     {
-        if (m_SettingsMap.value(name).o_freq_hi != val)
-            m_SettingsMap[name].o_freq_hi = val;
+        if (it->second.o_freq_hi != val)
+            it->second.o_freq_hi = val;
     }
     else
     {
         auto setting = RadioFX_Settings();
-        setting.name = name;
         setting.o_freq_hi = val;
-        m_SettingsMap.insert(name, setting);
+        m_settings_map.emplace(name, std::move(setting));
     }
-    emit OutBpCenterFreqSet(name, getCenterFrequencyOut(m_SettingsMap.value(name)));
-    emit OutBpBandwidthSet(name, getBandWidthOut(m_SettingsMap.value(name)));
-
-    //Log(QString("%1 rm_mix %2").arg(name).arg(val),LogLevel_DEBUG);
-    emit OutHiFreqSet(name, val);
 }
 
-void Radio::ToggleClientBlacklisted(uint64 serverConnectionHandlerID, anyID clientID)
+void Radio::ToggleClientBlacklisted(ts::connection_id_t sch_id, ts::client_id_t client_id)
 {
-    if (m_ClientBlacklist.contains(serverConnectionHandlerID, clientID))
-        m_ClientBlacklist.remove(serverConnectionHandlerID, clientID);
-    else
-        m_ClientBlacklist.insert(serverConnectionHandlerID, clientID);
+    {
+        auto it = std::find_if(std::begin(m_client_blacklist), std::end(m_client_blacklist), [sch_id, client_id](const auto& test)
+        {
+            return test.first == sch_id && test.second == client_id;
+        });
+        if (it != std::end(m_client_blacklist))
+            m_client_blacklist.erase(it);
+        else
+            m_client_blacklist.emplace(sch_id, client_id);
+    }
 
     if (!(isRunning()))
         return;
 
-    if (!(m_talkers_dspradios.contains(serverConnectionHandlerID)))
-        return;
-
-    auto sDspRadios = m_talkers_dspradios.value(serverConnectionHandlerID);
-    if (sDspRadios->contains(clientID))
-        sDspRadios->value(clientID)->setEnabled(QString::null,!isClientBlacklisted(serverConnectionHandlerID, clientID));
+	auto* dsp_radio = findRadio(sch_id, client_id);
+	const auto enable = !isClientBlacklisted(sch_id, client_id);
+	if (dsp_radio)
+	{
+		auto&& settings = dsp_radio->settings();
+		if (settings.enabled != enable)
+			settings.enabled = enable;
+	}
 }
 
-bool Radio::isClientBlacklisted(uint64 serverConnectionHandlerID, anyID clientID)
+DspRadio* Radio::findRadio(ts::connection_id_t sch_id, ts::client_id_t client_id)
 {
-    return m_ClientBlacklist.contains(serverConnectionHandlerID,clientID);
+	auto result = std::find_if(std::cbegin(m_talkers_dspradios), std::cend(m_talkers_dspradios), [sch_id, client_id](const auto& test) {
+		return sch_id == test.first && client_id == test.second.first;
+	});
+	if (result != std::cend(m_talkers_dspradios))
+		return result->second.second.get();
+
+	return nullptr;
+}
+
+bool Radio::isClientBlacklisted(ts::connection_id_t sch_id, ts::client_id_t client_id)
+{
+    return std::find_if(std::cbegin(m_client_blacklist), std::cend(m_client_blacklist), [sch_id, client_id](const auto& test)
+    {
+        return test.first == sch_id && test.second == client_id;
+    }) != std::cend(m_client_blacklist);
 }
 
 void Radio::onRunningStateChanged(bool value)
@@ -214,118 +205,66 @@ void Radio::onRunningStateChanged(bool value)
 }
 
 //! Returns true iff it will or has been an active processing
-bool Radio::onTalkStatusChanged(uint64 serverConnectionHandlerID, int status, bool isReceivedWhisper, anyID clientID, bool isMe)
+bool Radio::onTalkStatusChanged(ts::connection_id_t sch_id, int status, bool is_received_whisper, ts::client_id_t client_id, bool is_me)
 {
-    if (isMe || !isRunning())
+    if (is_me || !isRunning())
         return false;
 
     if (status == STATUS_TALKING)
     {   // Robust against multiple STATUS_TALKING in a row to be able to use it when the user changes settings
 
-        unsigned int error = ERROR_ok;
-        uint64 channel_id;
-        if (!isReceivedWhisper)
-        {   // Filter talk events outside of our channel
-            anyID my_id;
-            if ((error = ts3Functions.getClientID(serverConnectionHandlerID, &my_id)) != ERROR_ok)
-                this->Error("Error getting my id", serverConnectionHandlerID, error);
+        auto* dsp_obj = findRadio(sch_id, client_id);
+		if (dsp_obj)
+			return dsp_obj->settings().enabled;
 
-            uint64 my_channel_id;
-            if ((error = ts3Functions.getChannelOfClient(serverConnectionHandlerID, my_id, &my_channel_id)) != ERROR_ok)
-                this->Error("Error getting my channel id", serverConnectionHandlerID, error);
-
-            if ((error = ts3Functions.getChannelOfClient(serverConnectionHandlerID, clientID, &channel_id)) != ERROR_ok)
-                this->Error("Error getting my channel id", serverConnectionHandlerID, error);
-
-            if (channel_id != my_channel_id)
-                return false;
-        }
-
-        DspRadio* dsp_obj;
-        auto isNewDspObj = true;
-        if (!(m_talkers_dspradios.contains(serverConnectionHandlerID)))
+		// new dsp object
+        auto get_settings_ref = [this, sch_id, client_id, is_received_whisper]() -> RadioFX_Settings&
         {
-            dsp_obj = new DspRadio(this);
-            auto sDspRadios = new QHash<anyID, DspRadio*>;
-            sDspRadios->insert(clientID, dsp_obj);
-            m_talkers_dspradios.insert(serverConnectionHandlerID, sDspRadios);
-        }
-        else
-        {
-            auto sDspRadios = m_talkers_dspradios.value(serverConnectionHandlerID);
-            if (sDspRadios->contains(clientID))
+            if (is_received_whisper)
+                return m_settings_map.at("Whisper");
+            
+            // get channel. Reminder: We don't get talk status changes for channels we're not in.
+            uint64_t channel_id;
+            auto error = ts3Functions.getChannelOfClient(sch_id, client_id, &channel_id);
+            if (error != ERROR_ok)
+                this->Error("Error getting channel id", sch_id, error);
+
+            const auto server_id = m_servers_info.get_server_info(sch_id, true)->getUniqueId().toStdString();
+            const auto channel_path = TSHelpers::GetChannelPath(sch_id, channel_id).toStdString();
+
+            if (error == ERROR_ok && !channel_path.empty())
             {
-                dsp_obj = sDspRadios->value(clientID);
-                isNewDspObj = false;
+                const auto settings_map_key = server_id + channel_path;
+
+                if (const auto it = m_settings_map.find(settings_map_key); it != std::cend(m_settings_map))
+                    return m_settings_map.at(settings_map_key);
             }
-            else
-            {
-                dsp_obj = new DspRadio(this);
-                sDspRadios->insert(clientID, dsp_obj);
-            }
-        }
 
-        if (!isNewDspObj)
-            this->disconnect(dsp_obj);
+            if (sch_id == m_home_id.load())
+                return m_settings_map.at("Home");
+            
+            return m_settings_map.at("Other");
+        };
+        auto&& settings = get_settings_ref();
 
-        RadioFX_Settings settings;
-        if (isReceivedWhisper)
-            settings = m_SettingsMap.value("Whisper");
-        else
-        {
-            // get channel
-            auto server_id = m_servers_info.get_server_info(serverConnectionHandlerID, true)->getUniqueId();
-            auto channel_path = TSHelpers::GetChannelPath(serverConnectionHandlerID, channel_id);
+		auto dsp_radio = std::make_unique<DspRadio>(settings);
+		m_talkers_dspradios.emplace(sch_id, std::make_pair(client_id, std::move(dsp_radio)));
 
-            QString settings_map_key(server_id + channel_path);
-            //this->Log(settings_map_key);
-            if (error == ERROR_ok && (!channel_path.isEmpty()) && m_SettingsMap.contains(settings_map_key))
-            {
-                //this->Log("Applying custom setting");
-                settings = m_SettingsMap.value(settings_map_key);
-            }
-            else if (serverConnectionHandlerID == m_homeId)
-                settings = m_SettingsMap.value("Home");
-            else
-                settings = m_SettingsMap.value("Other");
-        }
-
-        dsp_obj->setChannelType(settings.name);
-        dsp_obj->setEnabled(settings.name, settings.enabled);
-        dsp_obj->setBandpassEqInCenterFrequency(settings.name, getCenterFrequencyIn(settings));
-        dsp_obj->setBandpassEqInBandWidth(settings.name, getBandWidthIn(settings));
-        dsp_obj->setFudge(settings.name, settings.fudge);
-        dsp_obj->setRmModFreq(settings.name, settings.rm_mod_freq);
-        dsp_obj->setRmMix(settings.name, settings.rm_mix);
-        dsp_obj->setBandpassEqOutCenterFrequency(settings.name, getCenterFrequencyOut(settings));
-        dsp_obj->setBandpassEqOutBandWidth(settings.name, getBandWidthOut(settings));
-        connect(this, &Radio::ChannelStripEnabledSet, dsp_obj, &DspRadio::setEnabled, Qt::UniqueConnection);
-        connect(this, &Radio::FudgeChanged, dsp_obj, &DspRadio::setFudge, Qt::UniqueConnection);
-        connect(this, &Radio::InBpCenterFreqSet, dsp_obj, &DspRadio::setBandpassEqInCenterFrequency, Qt::UniqueConnection);
-        connect(this, &Radio::InBpBandwidthSet, dsp_obj, &DspRadio::setBandpassEqInBandWidth, Qt::UniqueConnection);
-        connect(this, &Radio::RingModFrequencyChanged, dsp_obj, &DspRadio::setRmModFreq, Qt::UniqueConnection);
-        connect(this, &Radio::RingModMixChanged, dsp_obj, &DspRadio::setRmMix, Qt::UniqueConnection);
-        connect(this, &Radio::OutBpCenterFreqSet, dsp_obj, &DspRadio::setBandpassEqOutCenterFrequency, Qt::UniqueConnection);
-        connect(this, &Radio::OutBpBandwidthSet, dsp_obj, &DspRadio::setBandpassEqOutBandWidth, Qt::UniqueConnection);
-
-        return settings.enabled;
+		return settings.enabled;
     }
     else if (status == STATUS_NOT_TALKING)
     {
         // Removing does not need to be robust against multiple STATUS_NOT_TALKING in a row, since that doesn't happen on user setting change
-        if (!m_talkers_dspradios.contains(serverConnectionHandlerID))
-            return false;   // return silent bec. of ChannelMuter implementation
-
-        auto server_dsp_radios = m_talkers_dspradios.value(serverConnectionHandlerID);
-        if (!(server_dsp_radios->contains(clientID)))
-            return false;
-
-        auto dsp_obj = server_dsp_radios->value(clientID);
-        dsp_obj->blockSignals(true);
-        const auto kIsEnabled = dsp_obj->getEnabled();
-        dsp_obj->deleteLater();
-        server_dsp_radios->remove(clientID);
-        return kIsEnabled;
+        if (
+            auto it = std::find_if(std::cbegin(m_talkers_dspradios), std::cend(m_talkers_dspradios), [sch_id, client_id](const auto& test) {
+                return sch_id == test.first && client_id == test.second.first;
+                }); it != std::cend(m_talkers_dspradios))
+        {
+            const auto is_enabled = it->second.second->settings().enabled.load();
+            // *should* be fine here shouldn't it?
+            m_talkers_dspradios.erase(it);
+            return is_enabled;
+        }
     }
     return false;
 }
@@ -333,33 +272,23 @@ bool Radio::onTalkStatusChanged(uint64 serverConnectionHandlerID, int status, bo
 //! Routes the arguments of the event to the corresponding volume object
 /*!
  * \brief Radio::onEditPlaybackVoiceDataEvent pre-processing voice event
- * \param serverConnectionHandlerID the connection id of the server
- * \param clientID the client-side runtime-id of the sender
+ * \param sch_id the connection id of the server
+ * \param client_id the client-side runtime-id of the sender
  * \param samples the sample array to manipulate
- * \param sampleCount amount of samples in the array
+ * \param frame_count amount of samples in the array
  * \param channels amount of channels
  */
-void Radio::onEditPlaybackVoiceDataEvent(uint64 serverConnectionHandlerID, anyID clientID, short *samples, int sampleCount, int channels)
+void Radio::onEditPlaybackVoiceDataEvent(ts::connection_id_t sch_id, ts::client_id_t client_id, short *samples, int frame_count, int channels)
 {
     if (!(isRunning()))
         return;
 
-    if (!(m_talkers_dspradios.contains(serverConnectionHandlerID)))
-        return;
-
-    auto server_dsp_radios = m_talkers_dspradios.value(serverConnectionHandlerID);
-    if (!(server_dsp_radios->contains(clientID)))
-        return;
-
-    server_dsp_radios->value(clientID)->process(samples, sampleCount, channels);
+	auto* dsp_radio = findRadio(sch_id, client_id);
+	if (dsp_radio)
+		dsp_radio->process(samples, frame_count, channels);
 }
 
-QHash<QString, RadioFX_Settings> Radio::GetSettingsMap() const
+std::unordered_map<std::string, RadioFX_Settings>& Radio::settings_map_ref()
 {
-    return m_SettingsMap;
-}
-
-QHash<QString, RadioFX_Settings>& Radio::GetSettingsMapRef()
-{
-    return m_SettingsMap;
+    return m_settings_map;
 }
