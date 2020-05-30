@@ -1,6 +1,3 @@
 [submodule "deps/teamspeak-plugin-qt-common"]
 	path = deps/teamspeak-plugin-qt-common
 	url = https://github.com/thorwe/teamspeak-plugin-qt-common.git
-[submodule "deps/DSPFilters"]
-	path = deps/DSPFilters
-	url = https://github.com/vinniefalco/DSPFilters.git
