@@ -5,6 +5,7 @@ project (RadioFx LANGUAGES CXX)
 find_package(Qt5 COMPONENTS Gui Widgets REQUIRED)
 link_libraries(Qt5::Gui Qt5::Widgets)
 
+set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 

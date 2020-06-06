@@ -8,7 +8,7 @@
 #include "settings_radio.h"
 
 const char* Plugin::kPluginName = "Radio FX";
-const char* Plugin::kPluginVersion = "1.0";
+const char* Plugin::kPluginVersion = "1.1.1";
 const char* Plugin::kPluginAuthor = "Thorsten Weinz";
 const char* Plugin::kPluginDescription = "Features:\n\nRadio FX\n";
 
