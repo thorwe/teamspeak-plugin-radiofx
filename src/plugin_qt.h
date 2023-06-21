@@ -15,7 +15,7 @@ public:
 
 	static const char* kPluginName;
 	static const char* kPluginVersion;
-	static const int kPluginApiVersion = 23;
+	static const int kPluginApiVersion = 26;
 	static const char* kPluginAuthor;
 	static const char* kPluginDescription;
 
